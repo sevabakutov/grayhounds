@@ -1,0 +1,39 @@
+[package]
+name = "dogs"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "dogs_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-fs = "2"
+tauri-plugin-log = "2"
+anyhow = "1.0.98"
+chrono = { version = "0.4.41", features = ["serde"] }
+mongodb = "3.2.3"
+reqwest = { version = "0.12.20", features = ["json"] }
+log = "0.4.27"
+tokio = { version = "1.45.1", features = ["rt"] }
+config = "0.15.11"
+async-openai = "0.28.0"
+futures = "0.3.31"
+tauri-plugin-store = "2"
+async-trait = "0.1.88"
+dotenv = "0.15.0"
+chrono-tz = "0.10.3"
