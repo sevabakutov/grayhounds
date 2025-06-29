@@ -42,7 +42,6 @@ use crate::{
         Settings, 
         SkipInfo, 
         TestErrors, 
-        TestResults, 
         TestResultsDog, 
         TestResultsMeta, 
         TestResultsRace, 
@@ -159,7 +158,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
     initial_stake: f64,
     odds_range: OddsRange,
     is_favorite_protected: bool,
-) -> Result<TestResults> {
+) -> Result<(TestResultsMeta, Vec<TestResultsRace>)> {
     if responses.is_empty() {
         bail!("Пустой ответ от LLM модели, выход из функции. Выход изз функции тестирования.");
     }
@@ -414,5 +413,5 @@ pub async fn process_test_results<R: DogInfoRepo>(
         percentage,
     );
 
-    Ok(TestResults::new(meta, races))
+    Ok((meta, races))
 }

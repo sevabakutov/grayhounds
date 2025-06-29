@@ -33,16 +33,21 @@ const ResultsView: React.FC<Props> = ({ data }) => {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [alertStatus, setAlertStatus] = useState<'success'|'error'|null>(null);
 
-  const copyAllToClipboard = async (type: 'model' | 'real') => {
+  const copyAllToClipboard = async (type: 'model' | 'real' | 'request') => {
     try {
-      const racesPayload = data.races.map(r => ({
-        raceId: r.raceId,
-        ...r.meta,
-        dogs: r.dogs.map(d => ({
-          dogName: d.dogName,
-          ...(type === 'model' ? d.modelPrediction : d.realResults),
-        })),
-      }));
+      let racesPayload;
+      if (type === 'request') {
+        racesPayload = data.requests;
+      } else {
+        racesPayload = data.races.map(r => ({
+          raceId: r.raceId,
+          ...r.meta,
+          dogs: r.dogs.map(d => ({
+            dogName: d.dogName,
+            ...(type === 'model' ? d.modelPrediction : d.realResults),
+          })),
+        }));
+      }
       await navigator.clipboard.writeText(JSON.stringify(racesPayload, null, 2));
 
       setAlertStatus("success");
@@ -105,7 +110,10 @@ const ResultsView: React.FC<Props> = ({ data }) => {
           Скопировать ответ модели
         </Button>
         <Button variant="outlined" onClick={() => copyAllToClipboard('real')}>
-          Скопировать релаьные результаты
+          Скопировать реальные результаты
+        </Button>
+        <Button variant="outlined" onClick={() => copyAllToClipboard('request')}>
+          Скопировать запрос
         </Button>
       </Box>
 
@@ -113,7 +121,12 @@ const ResultsView: React.FC<Props> = ({ data }) => {
         <LineChart
           width={800}
           height={350}
-          xAxis={[{ data: chartData.map(d => d.index), label: 'Race #' }]}
+          xAxis={[
+            {
+              data: chartData.map(d => d.index),
+              label: 'Race #',
+            },
+          ]}
           series={[{ data: chartData.map(d => d.balance) }]}
         />
       </Paper>

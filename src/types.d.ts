@@ -99,6 +99,7 @@ export interface TestResultsRace {
 export interface TestResults {
   meta: TestResultsMeta;
   races: TestResultsRace[];
+  requests: Record<string, any>[];
 }
 
 export interface TimeRange {

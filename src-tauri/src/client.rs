@@ -167,13 +167,13 @@ impl OpenAIClient {
             bail!("No data to send");
         }
 
-        let responses = self.execute_requests(requests_info.requests).await;
+        let responses = self.execute_requests(requests_info.requests.clone()).await;
         log::debug!("Collected {} responses for test", responses.len());
 
         let col = database.collection(DOG_INFO_COLLECTION);
         let repo = MongoDogInfoRepo::new(col);
 
-        let results = process_test_results(
+        let (meta, races) = process_test_results(
             responses, 
             &repo,
             requests_info.total_races, 
@@ -183,7 +183,7 @@ impl OpenAIClient {
             is_favorite_protected
         ).await?;
 
-        Ok(results)
+        Ok(TestResults::new(meta, races, requests_info.requests))
     }
 
     fn clone_inner(&self) -> Self {

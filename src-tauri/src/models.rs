@@ -387,20 +387,45 @@ impl TestResultsRace {
 #[derive(Debug, Serialize)]
 pub struct TestResults {
     meta: TestResultsMeta,
-    races: Vec<TestResultsRace>
+    races: Vec<TestResultsRace>,
+    requests: Vec<HashMap<String, serde_json::Value>>
 }
 
 impl TestResults {
     pub fn new(
         meta: TestResultsMeta,
-        races: Vec<TestResultsRace>
+        races: Vec<TestResultsRace>,
+        requests: Vec<HashMap<String, serde_json::Value>>,
     ) -> Self {
-        Self {
-            meta,
-            races
-        }        
+        let requests = requests
+            .into_iter()
+            .map(|mut obj| {
+                let content_value = obj
+                    .remove("messages")
+                    .and_then(|v| v.as_array().cloned())
+                    .and_then(|msgs| {
+                        msgs.into_iter().find_map(|m| {
+                            m.get("role")
+                                .and_then(|r| r.as_str())
+                                .filter(|&r| r == "user")
+                                .and_then(|_| m.get("content").cloned())
+                        })
+                    });
+
+                obj.remove("meta");
+
+                if let Some(content) = content_value {
+                    obj.insert("content".to_string(), content);
+                }
+
+                obj
+            })
+            .collect();
+
+        Self { meta, races, requests }
     }
 }
+
 
 pub struct RequestsInfo {
     pub requests: Vec<HashMap<String, serde_json::Value>>,

@@ -233,4 +233,9 @@ export const testResultsMock: TestResults = {
       summary: "Race 2 overall summary",
     },
   ],
+  requests: [ 
+    {
+      "some data": "some data"
+    } 
+  ]
 };
