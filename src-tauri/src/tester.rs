@@ -203,9 +203,9 @@ impl Tester {
                         }
                     };
 
-                    let sectional = form.get_f64("resultSectionalTime").unwrap_or_default();
+                    let sectional = form.get_f64("resultSectionalTime");
                     let trap = form.get_i32("trapNumber")?;
-                    let weight = form.get_f64("resultDogWeight")?;
+                    let weight = form.get_f64("resultDogWeight");
                     let by = form.get_str("resultBtnDistance")?;
                     let grade = form.get_str("raceClass")?;
                     let comm = form.get_str("resultComment")?;
@@ -228,13 +228,13 @@ impl Tester {
                     let form_doc = doc! {
                         "btnDistance": by,
                         "resultRunTime": calc,
-                        "resultDogWeight": weight,
+                        "resultDogWeight": weight.map(Bson::from).unwrap_or(Bson::Null),
                         "raceComment": comm,
                         "raceWinnersTime": winners_time,
                         "goingType": going_type,
                         "raceClass": grade,
                         "trap": trap,
-                        "sectionalTime": sectional,
+                        "sectionalTime": sectional.map(Bson::from).unwrap_or(Bson::Null),
                         "resultPosition": outcome,
                         "distance": distance,
                     };
