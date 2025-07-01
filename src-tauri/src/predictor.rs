@@ -206,11 +206,15 @@ impl Predictor {
 
         let mut writes = Vec::with_capacity(preds.len());
 
-        // полночь завтрашнего дня (London → UTC)
-        let today     = Utc::now().with_timezone(&London).date_naive();
-        let tomorrow  = today.succ_opt().unwrap();
+        let today = Utc::now()
+            .with_timezone(&London)
+            .date_naive();
         let midnight  = London
-            .from_local_datetime(&tomorrow.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
+            .from_local_datetime(&today
+                .succ_opt()
+                .unwrap()
+                .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+            )
             .single()
             .unwrap()
             .with_timezone(&Utc);
@@ -218,7 +222,7 @@ impl Predictor {
 
         for p in preds {
             let mut doc = to_document(&p)?;
-            doc.insert("expireAt", expire_at); // TTL-поле
+            doc.insert("expireAt", expire_at);
 
             writes.push(doc);
         }

@@ -4,19 +4,10 @@ use anyhow::{
     Context, 
     Result
 };
-use async_openai::types::{
-    CreateChatCompletionResponse, 
-    ResponseFormatJsonSchema
-};
-// use chrono::{
-//     NaiveDateTime, 
-//     // TimeZone, 
-//     // Utc
-// };
+use async_openai::types::ResponseFormatJsonSchema;
 use mongodb::{
     bson::{
         doc, 
-        // DateTime, 
         Document
     }, 
     Database
@@ -151,7 +142,7 @@ pub fn get_response_format_json_schema() -> ResponseFormatJsonSchema {
 }
 
 pub async fn process_test_results<R: DogInfoRepo>(
-    responses: Vec<CreateChatCompletionResponse>,
+    predictions: Vec<PredictResponse>,
     repo: &R,
     total_races: usize,
     initial_balance: f64,
@@ -159,7 +150,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
     odds_range: OddsRange,
     is_favorite_protected: bool,
 ) -> Result<(TestResultsMeta, Vec<TestResultsRace>)> {
-    if responses.is_empty() {
+    if predictions.is_empty() {
         bail!("Пустой ответ от LLM модели, выход из функции. Выход изз функции тестирования.");
     }
     if initial_balance <= 2.0 || !initial_balance.is_normal() {
@@ -182,8 +173,8 @@ pub async fn process_test_results<R: DogInfoRepo>(
     }
 
     let mut tracked_races: usize = 0;
-    let mut total_empty_content = 0;
-    let mut total_race_parse_error = 0;
+    // let mut total_empty_content = 0;
+    // let mut total_race_parse_error = 0;
     let mut total_mongo_db_error = 0;
     let mut bad_hit_4_pos = 0;
     let mut bad_hit_5_pos = 0;
@@ -204,25 +195,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
         odds_range.high
     );
 
-    'responses: for resp in responses {
-        for choice in &resp.choices {
-            let json = match &choice.message.content {
-                Some(j) => j,
-                None => {
-                    log::warn!("Пустой ответ от LLM модели.");
-                    total_empty_content += 1;
-                    continue;
-                }
-            };
-
-            let mut predict = match serde_json::from_str::<PredictResponse>(json) {
-                Ok(p) => p,
-                Err(error) => {
-                    total_race_parse_error += 1;
-                    log::error!("{error}\n{json}");
-                    continue;
-                }
-            };
+    'preds: for mut predict in predictions {
             predict.sort_predictions();
 
             let meta_pred = &predict.meta;
@@ -367,7 +340,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
                         current_balance,
                         obligation
                     );
-                    break 'responses;
+                    break 'preds;
                 }
 
                 if bet_target.real_position == 1 {
@@ -394,7 +367,6 @@ pub async fn process_test_results<R: DogInfoRepo>(
             let race_struct = TestResultsRace::new(race_id, race_meta, test_dogs, race_summary);
             races.push(race_struct);
         }
-    }
 
     let percentage = ((current_balance - initial_balance) / initial_balance) * 100.0;
     let meta = TestResultsMeta::new(
@@ -408,7 +380,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
             skipped_favorite,
         ),
         Balance::new(initial_balance, current_balance),
-        TestErrors::new(total_empty_content, total_race_parse_error, total_mongo_db_error),
+        TestErrors::new(0, 0, total_mongo_db_error),
         initial_stake,
         percentage,
     );

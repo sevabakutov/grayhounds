@@ -353,6 +353,11 @@ impl Scrapper {
         // 1) trackId -> trackName
         if let Some(serde_json::Value::String(track_id_str)) = dog_map.get("trackId") {
             let track_name = self.convert_track_id(track_id_str);
+            
+            if track_name.eq(&"Limerick") || track_name.eq(&"Youghal") {
+                return None;
+            }
+            
             doc.insert("trackName", track_name);
         }
 

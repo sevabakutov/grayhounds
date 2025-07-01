@@ -21,7 +21,6 @@ use async_openai::{
     },
     Client
 };
-use log::error;
 use mongodb::Database;
 use crate::{
     constants::DOG_INFO_COLLECTION, 
@@ -77,8 +76,6 @@ impl OpenAIClient {
             .build()
             .context("Failed to build CreateChatCompletionRequestArgs")?;
 
-        // println!("Request: {:?}", request.clone());
-
         let response = self.client
             .chat()
             .create(request)
@@ -91,26 +88,66 @@ impl OpenAIClient {
 
     async fn execute_requests(
         &self,
-        requests: Vec<HashMap<String, serde_json::Value>>,
-    ) -> Vec<CreateChatCompletionResponse> {
-        let arc_self = Arc::new(self.clone_inner());
-        let mut futs = FuturesUnordered::new();
+        mut requests: Vec<HashMap<String, serde_json::Value>>,
+    ) -> Vec<PredictResponse> {
+        const MAX_RETRIES: usize = 3;
+        let client = Arc::new(self.clone_inner());
+        let mut ok = Vec::with_capacity(requests.len());
 
-        for req in requests {
-            let cloned = Arc::clone(&arc_self);
-            futs.push(tokio::spawn(async move { cloned.send(req).await }));
-        }
-
-        let mut results = Vec::new();
-        while let Some(res) = futs.next().await {
-            match res {
-                Ok(Ok(resp)) => results.push(resp),
-                Ok(Err(e)) => error!("OpenAI request error: {:?}", e),
-                Err(join_err) => error!("Task join error: {:?}", join_err),
+        for _ in 0..MAX_RETRIES {
+            if requests.is_empty() {
+                break;
             }
+
+            let mut futs = FuturesUnordered::new();
+            for (idx, req) in requests.into_iter().enumerate() {
+                let c = Arc::clone(&client);
+                futs.push(tokio::spawn(async move {
+                    let r = c.send(req.clone()).await;
+                    (idx, req, r)
+                }));
+            }
+
+            let mut failed = Vec::new();
+            while let Some(join_res) = futs.next().await {
+                match join_res {
+                    Ok((idx, _, Ok(resp))) if self.response_ok(&resp) => {
+                        if let Some(p) = self.parse_choice(&resp) {
+                            ok.push((idx, p));
+                        }
+                    }
+
+                    Ok((_, orig_req, _)) => {
+                        failed.push(orig_req);
+                    }
+
+                    Err(join_err) => {
+                        log::error!("Task join error: {:?}", join_err);
+                    }
+                }
+            }
+            requests = failed;
         }
 
-        results
+        ok.sort_by_key(|(idx, _)| *idx);
+        ok.into_iter().map(|(_, p)| p).collect()
+    }
+
+    fn response_ok(&self, resp: &CreateChatCompletionResponse) -> bool {
+        resp.choices.iter().all(|c| {
+            c.message
+                .content
+                .as_ref()
+                .and_then(|s| serde_json::from_str::<PredictResponse>(s).ok())
+                .map(|p| p.predictions.iter().filter(|x| x.raw_score.eq(&0.0)).count() > 2)
+                .unwrap_or(false)
+        })
+    }
+
+    fn parse_choice(&self, resp: &CreateChatCompletionResponse) -> Option<PredictResponse> {
+        resp.choices.iter().find_map(|c| {
+            c.message.content.as_ref().and_then(|s| serde_json::from_str(s).ok())
+        })
     }
 
     pub async fn send_multiple(
@@ -120,38 +157,19 @@ impl OpenAIClient {
         if requests.is_empty() {
             bail!("No data to send");
         }
-        let responses = self.execute_requests(requests).await;
-        log::info!("Collected {} responses for send_multiple", responses.len());
 
-        // println!("Responses: \n{:#?}", responses.clone());
+        let mut responses = self
+            .execute_requests(requests)
+            .await
+            .into_iter()
+            .map(|mut p| {
+                p.sort_predictions();
+                p
+            })
+            .collect::<Vec<_>>();
 
-        let mut result = Vec::with_capacity(responses.len());
-        for response in responses {
-            for choise in response.choices {
-                let json = match &choise.message.content {
-                    Some(content) => content,
-                    None => {
-                        log::error!("Empty content from model");
-                        continue;
-                    }
-                };
-
-                let content = match serde_json::from_str::<PredictResponse>(json) {
-                    Ok(mut val) => {
-                        val.sort_predictions();
-                        val
-                    },
-                    Err(err) => {
-                        log::error!("{err}");
-                        continue;
-                    }
-                };
-
-                result.push(content);
-            }
-        }
-
-        Ok(result)
+        responses.sort_by_key(|p| (p.meta.date, p.meta.time));
+        Ok(responses)
     }
 
     pub async fn test(
@@ -167,14 +185,14 @@ impl OpenAIClient {
             bail!("No data to send");
         }
 
-        let responses = self.execute_requests(requests_info.requests.clone()).await;
-        log::debug!("Collected {} responses for test", responses.len());
+        let predictions  = self.execute_requests(requests_info.requests.clone()).await;
+        // log::debug!("Collected {} responses for test", responses.len());
 
         let col = database.collection(DOG_INFO_COLLECTION);
         let repo = MongoDogInfoRepo::new(col);
 
         let (meta, races) = process_test_results(
-            responses, 
+            predictions, 
             &repo,
             requests_info.total_races, 
             initial_balance, 
