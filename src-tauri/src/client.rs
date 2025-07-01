@@ -139,7 +139,7 @@ impl OpenAIClient {
                 .content
                 .as_ref()
                 .and_then(|s| serde_json::from_str::<PredictResponse>(s).ok())
-                .map(|p| p.predictions.iter().filter(|x| x.raw_score.eq(&0.0)).count() > 2)
+                .map(|p| p.predictions.iter().filter(|x| x.raw_score.eq(&0.0)).count() < 2)
                 .unwrap_or(false)
         })
     }

@@ -345,20 +345,23 @@ pub async fn process_test_results<R: DogInfoRepo>(
 
                 if bet_target.real_position == 1 {
                     current_balance -= obligation;
+                    current_balance = r2(current_balance);
                 } else {
                     current_balance += initial_stake * BETFAIR_PERCENTAGE;
+                    current_balance = r2(current_balance);
                 }
                 tracked_races += 1;
             }
 
-            let profit = ((current_balance - initial_balance) / initial_balance) * 100.0;
+            let mut profit = ((current_balance - initial_balance) / initial_balance) * 100.0;
+            profit = r2(profit);
             let race_meta = TestResultsRaceMeta::new(
                 meta_pred.date,
                 meta_pred.distance,
                 meta_pred.grade.clone(),
                 meta_pred.time,
                 meta_pred.track.clone(),
-                current_balance,
+                r2(current_balance),
                 profit,
             );
 
@@ -368,7 +371,8 @@ pub async fn process_test_results<R: DogInfoRepo>(
             races.push(race_struct);
         }
 
-    let percentage = ((current_balance - initial_balance) / initial_balance) * 100.0;
+    let mut percentage = ((current_balance - initial_balance) / initial_balance) * 100.0;
+    percentage = r2(percentage);
     let meta = TestResultsMeta::new(
         RaceCount::new(total_races, tracked_races),
         odds_range,
@@ -379,7 +383,7 @@ pub async fn process_test_results<R: DogInfoRepo>(
             skipped_odds_range,
             skipped_favorite,
         ),
-        Balance::new(initial_balance, current_balance),
+        Balance::new(initial_balance, r2(current_balance)),
         TestErrors::new(0, 0, total_mongo_db_error),
         initial_stake,
         percentage,
@@ -387,3 +391,6 @@ pub async fn process_test_results<R: DogInfoRepo>(
 
     Ok((meta, races))
 }
+
+#[inline]
+fn r2(v: f64) -> f64 { (v * 100.0).round() / 100.0 }

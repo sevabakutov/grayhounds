@@ -71,7 +71,7 @@ const ResultsView: React.FC<Props> = ({ data }) => {
 
     data.races.forEach(r => {
       const curr = r.meta.currentBalance;
-      if (result.length === 0 || curr !== result[result.length - 1].balance) {
+      if ((result.length === 0 && data.meta.balance.initialBalance !== curr) || curr !== result[result.length - 1].balance) {
         result.push({ index: result.length + 1, balance: curr });
       }
     });
@@ -213,26 +213,36 @@ const ResultsView: React.FC<Props> = ({ data }) => {
             <TableHead>
               <TableRow>
                 <TableCell />
-                <TableCell>Race #</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Distance</TableCell>
-                <TableCell>Time</TableCell>
-                <TableCell>Grade</TableCell>
-                <TableCell>Track</TableCell>
-                <TableCell>Balance</TableCell>
-                <TableCell>Profit</TableCell>
-                <TableCell align="center">Skipped</TableCell>
+                <TableCell>Гонка #</TableCell>
+                <TableCell>Дата</TableCell>
+                <TableCell>Дистанция</TableCell>
+                <TableCell>Время</TableCell>
+                <TableCell>Грейд</TableCell>
+                <TableCell>Трасса</TableCell>
+                <TableCell>Баланс</TableCell>
+                <TableCell>Профит %</TableCell>
+                <TableCell align="center">Участвовали</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {data.races.map((race, idx) => {
                 const meta = race.meta;
-                const wasSkipped = meta.currentBalance === (idx !== 0 && prevBalance) ? true : false;
+                const wasSkipped = idx === 0
+                  ? meta.currentBalance === data.meta.balance.initialBalance
+                  : meta.currentBalance === prevBalance;
+
+                const rowColor =
+                  wasSkipped
+                    ? 'rgba(0,0,0,0.05)'
+                    : meta.currentBalance < prevBalance
+                    ? 'rgba(255,0,0,0.08)'
+                    : 'rgba(0,128,0,0.08)';
+
                 prevBalance = meta.currentBalance;
 
                 return (
                   <>
-                    <TableRow key={race.raceId} hover>
+                    <TableRow key={race.raceId} hover sx={{ backgroundColor: rowColor }}>
                       <TableCell>
                         <IconButton
                           size="small"
@@ -250,7 +260,7 @@ const ResultsView: React.FC<Props> = ({ data }) => {
                       <TableCell>{meta.currentBalance}</TableCell>
                       <TableCell>{meta.profit}</TableCell>
                       <TableCell align="center">
-                        {wasSkipped ? <CheckIcon color="success" /> : <CloseIcon color="error" />}
+                        {wasSkipped ? <CloseIcon color="error" /> : <CheckIcon color="success" />}
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -264,7 +274,7 @@ const ResultsView: React.FC<Props> = ({ data }) => {
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 4 }}>
                                   <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2">Model Prediction</Typography>
+                                    <Typography variant="subtitle2">Предсказание модели</Typography>
                                       <Typography key={dog.dogName} variant="body2">
                                           {dog.modelPrediction.rank}. {dog.dogName}: {dog.modelPrediction.percentage}% (score: {dog.modelPrediction.rawScore})
                                       </Typography>
@@ -273,7 +283,7 @@ const ResultsView: React.FC<Props> = ({ data }) => {
                                     </Typography>
                                   </Box>
                                   <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2">Real Results</Typography>
+                                    <Typography variant="subtitle2">Реальные результаты</Typography>
                                     <Typography variant="body2">
                                       Rank: {dog.realResults.rank}, Odds: {dog.realResults.betfairOdds}
                                     </Typography>
