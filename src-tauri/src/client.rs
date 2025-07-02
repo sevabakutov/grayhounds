@@ -22,7 +22,7 @@ use async_openai::{
     Client
 };
 use mongodb::Database;
-use serde_json::json;
+// use serde_json::json;
 use crate::{
     constants::DOG_INFO_COLLECTION, 
     models::{
@@ -101,24 +101,24 @@ impl OpenAIClient {
             }
 
             let mut futs = FuturesUnordered::new();
-            for (idx, req) in requests.into_iter().enumerate() {
+            for req in requests.into_iter() {
                 let c = Arc::clone(&client);
                 futs.push(tokio::spawn(async move {
                     let r = c.send(req.clone()).await;
-                    (idx, req, r)
+                    (req, r)
                 }));
             }
 
             let mut failed = Vec::new();
             while let Some(join_res) = futs.next().await {
                 match join_res {
-                    Ok((idx, orig_req, Ok(resp))) => {
+                    Ok((orig_req, Ok(resp))) => {
                         log::info!("{:#?}", resp);
 
                         if self.response_ok(&resp) {
                             if let Some(p) = self.parse_choice(&resp) {
                                 log::info!("Хороший ответ!");
-                                ok.push((idx, p));
+                                ok.push(p);
                             } else {
                                 log::error!("Плохой ответ! Переотправка");
                                 failed.push(orig_req);
@@ -129,7 +129,7 @@ impl OpenAIClient {
                         }
                     }
 
-                    Ok((_, orig_req, Err(err))) => {
+                    Ok((orig_req, Err(err))) => {
                         log::error!("{err}");
                         failed.push(orig_req);
                     }
@@ -142,8 +142,9 @@ impl OpenAIClient {
             requests = failed;
         }
 
-        ok.sort_by_key(|(idx, _)| *idx);
-        ok.into_iter().map(|(_, p)| p).collect()
+        ok.sort_by(|a, b| a.meta.date.cmp(&b.meta.date));
+        ok.sort_by(|a, b| a.meta.time.cmp(&b.meta.time));
+        ok
     }
 
     fn response_ok(&self, resp: &CreateChatCompletionResponse) -> bool {
@@ -156,7 +157,7 @@ impl OpenAIClient {
                     p.predictions
                         .iter()
                         .filter(|pred| pred.raw_score == 0.0)
-                        .nth(1)
+                        .nth(0)
                         .is_none()
                 })
                 .unwrap_or(false)
@@ -177,7 +178,7 @@ impl OpenAIClient {
             bail!("No data to send");
         }
 
-        let mut responses = self
+        let responses = self
             .execute_requests(requests)
             .await
             .into_iter()
@@ -186,9 +187,6 @@ impl OpenAIClient {
                 p
             })
             .collect::<Vec<_>>();
-
-        responses.sort_by(|a, b| a.meta.date.cmp(&b.meta.date));
-        responses.sort_by(|a, b| a.meta.time.cmp(&b.meta.time));
 
         Ok(responses)
     }
