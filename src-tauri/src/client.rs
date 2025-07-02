@@ -90,7 +90,7 @@ impl OpenAIClient {
         &self,
         mut requests: Vec<HashMap<String, serde_json::Value>>,
     ) -> Vec<PredictResponse> {
-        const MAX_RETRIES: usize = 3;
+        const MAX_RETRIES: usize = 5;
         let client = Arc::new(self.clone_inner());
         let mut ok = Vec::with_capacity(requests.len());
 
@@ -114,16 +114,20 @@ impl OpenAIClient {
                     Ok((idx, orig_req, Ok(resp))) => {
                         if self.response_ok(&resp) {
                             if let Some(p) = self.parse_choice(&resp) {
+                                println!("Хороший ответ!");
                                 ok.push((idx, p));
                             } else {
+                                println!("Плохой ответ! Переотправка");
                                 failed.push(orig_req);
                             }
                         } else {
+                            println!("Плохой ответ! Переотправка");
                             failed.push(orig_req);
                         }
                     }
 
                     Ok((_, orig_req, _)) => {
+                        println!("Плохой ответ! Переотправка");
                         failed.push(orig_req);
                     }
 
