@@ -273,7 +273,7 @@ impl Tester {
             }
         }
 
-        println!("races: {:?}", races.clone());
+        // println!("races: {:?}", races.clone());
 
         if MAX_REQUEST_DEFENCE < races.len() {
             races.truncate(self.config.max_races);
