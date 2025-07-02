@@ -46,7 +46,7 @@ impl fmt::Display for Model {
         let s = match self {
             Model::O3Mini => "o3-mini",
             Model::O4Mini => "o4-mini",
-            Model::O3     => "o3-2025-04-16"
+            Model::O3     => "o3"
         };
         f.write_str(s)
     }

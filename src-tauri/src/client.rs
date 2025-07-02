@@ -22,6 +22,7 @@ use async_openai::{
     Client
 };
 use mongodb::Database;
+use serde_json::json;
 use crate::{
     constants::DOG_INFO_COLLECTION, 
     models::{
@@ -73,6 +74,7 @@ impl OpenAIClient {
             .response_format(ResponseFormat::JsonSchema { json_schema: get_response_format_json_schema() })
             // .seed(self.config.seed.unwrap_or(0))
             .messages(messages)
+            
             .build()
             .context("Failed to build CreateChatCompletionRequestArgs")?;
 

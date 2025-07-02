@@ -31,7 +31,7 @@ reqwest = { version = "0.12.20", features = ["json"] }
 log = "0.4.27"
 tokio = { version = "1.45.1", features = ["rt"] }
 config = "0.15.11"
-async-openai = "0.28.0"
+async-openai = { version = "0.28", features = ["byot"] }
 futures = "0.3.31"
 tauri-plugin-store = "2"
 async-trait = "0.1.88"
