@@ -94,50 +94,83 @@ impl OpenAIClient {
         let client = Arc::new(self.clone_inner());
         let mut ok = Vec::with_capacity(requests.len());
 
-        for _ in 0..MAX_RETRIES {
-            if requests.is_empty() {
-                break;
-            }
+        for idx in 0..MAX_RETRIES {
+            println!("индекс: {idx}");
+            let mut fail = Vec::new();
 
-            let mut futs = FuturesUnordered::new();
             for (idx, req) in requests.into_iter().enumerate() {
-                let c = Arc::clone(&client);
-                futs.push(tokio::spawn(async move {
-                    let r = c.send(req.clone()).await;
-                    (idx, req, r)
-                }));
-            }
+                println!("ждем 30 сек");
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;   // back-off перед новой попыткой
 
-            let mut failed = Vec::new();
-            while let Some(join_res) = futs.next().await {
-                match join_res {
-                    Ok((idx, orig_req, Ok(resp))) => {
-                        if self.response_ok(&resp) {
-                            if let Some(p) = self.parse_choice(&resp) {
-                                println!("Хороший ответ!");
-                                ok.push((idx, p));
-                            } else {
-                                println!("Плохой ответ! Переотправка");
-                                failed.push(orig_req);
-                            }
+                let resp = client.send(req.clone()).await;   // последовательный await
+
+                match resp {
+                    Ok(resp) if self.response_ok(&resp) =>
+                        if let Some(p) = self.parse_choice(&resp) {
+                            println!("Хороший ответ!");
+                            ok.push((idx, p));
                         } else {
                             println!("Плохой ответ! Переотправка");
-                            failed.push(orig_req);
+                            fail.push(req);
                         }
-                    }
-
-                    Ok((_, orig_req, _)) => {
+                    _ => {
                         println!("Плохой ответ! Переотправка");
-                        failed.push(orig_req);
-                    }
-
-                    Err(join_err) => {
-                        log::error!("Task join error: {:?}", join_err);
-                    }
+                        fail.push(req)
+                    },
                 }
             }
-            requests = failed;
+
+            if fail.is_empty() {
+                return ok.into_iter().map(|(_, p)| p).collect();
+            }
+
+            requests = fail;
         }
+
+        // for _ in 0..MAX_RETRIES {
+        //     if requests.is_empty() {
+        //         break;
+        //     }
+
+        //     let mut futs = FuturesUnordered::new();
+        //     for (idx, req) in requests.into_iter().enumerate() {
+        //         let c = Arc::clone(&client);
+        //         futs.push(tokio::spawn(async move {
+        //             let r = c.send(req.clone()).await;
+        //             (idx, req, r)
+        //         }));
+        //     }
+
+        //     let mut failed = Vec::new();
+        //     while let Some(join_res) = futs.next().await {
+        //         match join_res {
+        //             Ok((idx, orig_req, Ok(resp))) => {
+        //                 if self.response_ok(&resp) {
+        //                     if let Some(p) = self.parse_choice(&resp) {
+        //                         println!("Хороший ответ!");
+        //                         ok.push((idx, p));
+        //                     } else {
+        //                         println!("Плохой ответ! Переотправка");
+        //                         failed.push(orig_req);
+        //                     }
+        //                 } else {
+        //                     println!("Плохой ответ! Переотправка");
+        //                     failed.push(orig_req);
+        //                 }
+        //             }
+
+        //             Ok((_, orig_req, _)) => {
+        //                 println!("Плохой ответ! Переотправка");
+        //                 failed.push(orig_req);
+        //             }
+
+        //             Err(join_err) => {
+        //                 log::error!("Task join error: {:?}", join_err);
+        //             }
+        //         }
+        //     }
+        //     requests = failed;
+        // }
 
         ok.sort_by_key(|(idx, _)| *idx);
         ok.into_iter().map(|(_, p)| p).collect()
