@@ -87,11 +87,11 @@ pub fn get_response_format_json_schema() -> ResponseFormatJsonSchema {
                 "additionalProperties": false,
                 "properties": {
                     "date": {
-                        "type": ["string"],
+                        "type": "string",
                         "description": "Дата гонки (YYYY-MM-DD). Я передаю ее в поле raceDateTime, будь внимателен!! Это очень важно!"
                     },
                     "time": {
-                        "type": ["string"],
+                        "type": "string",
                         "description": "Время гонки (HH:MM:SS)"
                     },
                     "distance": {
@@ -103,8 +103,8 @@ pub fn get_response_format_json_schema() -> ResponseFormatJsonSchema {
                         "description": "Название трека. Очень важно! Выдавай всегда"
                     },
                     "grade": {
-                        "type": ["string"],
-                        "description": "Класс гонки (A3, A4, D3 и т.д.)"
+                        "type": "string",
+                        "description": "Класс гонки"
                     }
                 },
                 "required": ["date", "time", "distance", "track", "grade"]
@@ -116,11 +116,30 @@ pub fn get_response_format_json_schema() -> ResponseFormatJsonSchema {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "name": { "type": "string", "description": "Имя собаки" },
-                        "rawScore": { "type": "number", "description": "Суммарный Raw Score" },
-                        "percentage": { "type": "number", "min": 0, "max": 100, "description": "Шанс победы в процентах" },
-                        "rank": { "type": "integer", "description": "Позиция в прогнозе (1 — фаворит)" },
-                        "comment": { "type": ["string", "null"], "description": "Краткий комментарий по результату. Выдавай его всегда" }
+                        "name": { 
+                            "type": "string", 
+                            "description": "Имя собаки" 
+                        },
+                        "rawScore": { 
+                            "type": "number", 
+                            "description": "Суммарный Raw Score" 
+                        },
+                        "percentage": { 
+                            "type": "number", 
+                            "min": 0, 
+                            "max": 100, 
+                            "description": "Шанс победы в процентах" 
+                        },
+                        "rank": { 
+                            "type": "integer", 
+                            "min": 1, 
+                            "max": 6, 
+                            "description": "Позиция в прогнозе (1 — фаворит)" 
+                        },
+                        "comment": { 
+                            "type": "string", 
+                            "description": "Краткий комментарий по результату. Выдавай его всегда" 
+                        }
                     },
                     "required": ["name", "rawScore", "percentage", "rank", "comment"]
                 }

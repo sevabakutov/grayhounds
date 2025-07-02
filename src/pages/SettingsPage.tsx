@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { invoke } from '@tauri-apps/api/core';
 
-const modelOptions = ['o3-mini', 'o4-mini'];
+const modelOptions = ['o3-mini', 'o4-mini', 'o3'];
 
 const SettingsPage: React.FC = () => {
   const [model, setModel] = useState<string>('');
