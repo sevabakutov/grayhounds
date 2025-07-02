@@ -111,9 +111,15 @@ impl OpenAIClient {
             let mut failed = Vec::new();
             while let Some(join_res) = futs.next().await {
                 match join_res {
-                    Ok((idx, _, Ok(resp))) if self.response_ok(&resp) => {
-                        if let Some(p) = self.parse_choice(&resp) {
-                            ok.push((idx, p));
+                    Ok((idx, orig_req, Ok(resp))) => {
+                        if self.response_ok(&resp) {
+                            if let Some(p) = self.parse_choice(&resp) {
+                                ok.push((idx, p));
+                            } else {
+                                failed.push(orig_req);
+                            }
+                        } else {
+                            failed.push(orig_req);
                         }
                     }
 
@@ -168,7 +174,9 @@ impl OpenAIClient {
             })
             .collect::<Vec<_>>();
 
-        responses.sort_by_key(|p| (p.meta.date, p.meta.time));
+        responses.sort_by(|a, b| a.meta.date.cmp(&b.meta.date));
+        responses.sort_by(|a, b| a.meta.time.cmp(&b.meta.time));
+
         Ok(responses)
     }
 
