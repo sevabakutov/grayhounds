@@ -80,8 +80,7 @@ impl OpenAIClient {
             .chat()
             .create(request)
             .await
-            .context("OpenAI chat completion request failed")?;
-
+            .map_err(|err| anyhow!("{err}"))?;
 
         Ok(response)
     }
