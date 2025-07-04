@@ -106,11 +106,14 @@ impl Predictor {
             }
         };
 
-        // println!("Filter: {:?}", filter.clone());
+        let pipeline = vec![
+            doc! { "$match": filter.clone() },
+            doc! { "$sort": { "race_date_time": 1_i32 } },
+        ];
 
         let mut races: Vec<Document> = database
             .collection::<Document>(RACES_COLLECTION)
-            .find(filter)
+            .aggregate(pipeline)
             .await?
             .try_collect()
             .await?;

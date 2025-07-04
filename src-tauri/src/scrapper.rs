@@ -354,7 +354,7 @@ impl Scrapper {
         if let Some(serde_json::Value::String(track_id_str)) = dog_map.get("trackId") {
             let track_name = self.convert_track_id(track_id_str);
             
-            if track_name.eq(&"Limerick") || track_name.eq(&"Youghal") {
+            if track_name.eq(&"Limerick") || track_name.eq(&"Youghal") || track_name.eq(&"Clonmel") {
                 return None;
             }
             
@@ -380,15 +380,6 @@ impl Scrapper {
         // 6) forecastComment -> skip
         // 7) chanceOfWin -> skip
 
-        // // 8) brt -> f32
-        // if let Some(serde_json::Value::String(brt_str)) = dog_map.get("brt") {
-        //     if let Ok(brt_f) = brt_str.parse::<f32>() {
-        //         doc.insert("brt", Bson::Double(brt_f as f64));
-        //     } else {
-        //         doc.insert("brt", Bson::Null);
-        //     }
-        // }
-
         // 9) form (object) → convert recursevly
         if let Some(serde_json::Value::Object(form_map)) = dog_map.get("form") {
             let mut form_doc = Document::new();
@@ -405,16 +396,6 @@ impl Scrapper {
             }
 
             // 9.c) forecast -> skip
-
-            // // 9.d) brt -> f32
-            // if let Some(serde_json::Value::String(brt_str)) = form_map.get("brt") {
-            //     if let Ok(brt_f) = brt_str.parse::<f32>() {
-            //         form_doc.insert("brt", Bson::Double(brt_f as f64));
-            //     } else {
-            //         form_doc.insert("brt", Bson::Null);
-            //     }
-            // }
-
             // 9.e) chanceOfWin -> skip
 
             // 9.f) forms → array of documents
@@ -522,10 +503,6 @@ impl Scrapper {
                 }
                 form_doc.insert("forms", Bson::Array(bson_forms));
             }
-
-            // 9.g) trapNum inside form -> skip
-            // 9.h) topSpeed inside form -> skip
-            // 9.i) forecastComment inside form -> skip
 
             doc.insert("form", Bson::Document(form_doc));
         }

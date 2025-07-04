@@ -67,17 +67,19 @@ const ResultsView: React.FC<Props> = ({ data }) => {
   }, [stage]);
 
   const chartData = useMemo(() => {
-    const result: { index: number; balance: number }[] = [];
+    const result: { index: number; balance: number }[] = [
+      { index: 0, balance: data.meta.balance.initialBalance },
+    ];
 
     data.races.forEach(r => {
       const curr = r.meta.currentBalance;
-      if ((result.length === 0 && data.meta.balance.initialBalance !== curr) || curr !== result[result.length - 1].balance) {
-        result.push({ index: result.length + 1, balance: curr });
+      if (curr !== result[result.length - 1].balance) {
+        result.push({ index: result.length, balance: curr });
       }
     });
 
     return result;
-  }, [data.races]);
+  }, [data.races, data.meta.balance.initialBalance]);
 
   const {
     raceCount,
