@@ -93,16 +93,28 @@ impl Tester {
             }
         };
 
-        // println!("Filter: {:?}", filter.clone());
+        let pipeline = vec![
+            doc! { "$match": filter.clone() },
+            doc! { "$sort": { "raceDateTime": 1_i32 } },
+            doc! { 
+                "$group": { 
+                    "_id": "$raceId",
+                    "raceDateTime": { "$first": "$raceDateTime" }
+                } 
+            },
+            doc! { "$sort": { "raceDateTime": 1_i32 } },
+        ];
 
         let race_ids = collection
-            .distinct("raceId", filter)
+            .aggregate(pipeline)
+            .await?
+            .try_collect::<Vec<Document>>()
             .await?
             .into_iter()
-            .map(|b| match b {
-                Bson::Int64(val) => val,
-                Bson::Int32(val) => val as i64,
-                _ => unreachable!()
+            .map(|d| match d.get("_id").expect("no _id in doc") {
+                Bson::Int64(v) => *v,
+                Bson::Int32(v) => *v as i64,
+                _ => unreachable!(),
             })
             .collect::<Vec<i64>>();
 

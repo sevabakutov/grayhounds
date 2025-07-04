@@ -142,8 +142,7 @@ impl OpenAIClient {
             requests = failed;
         }
 
-        ok.sort_by(|a, b| a.meta.date.cmp(&b.meta.date));
-        ok.sort_by(|a, b| a.meta.time.cmp(&b.meta.time));
+        ok.sort_by_key(|p| (p.meta.date, p.meta.time));
         ok
     }
 
