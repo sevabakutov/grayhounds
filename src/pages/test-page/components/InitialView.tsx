@@ -190,7 +190,7 @@ export const InitialView: React.FC<Props> = ({
 			variant="contained"
 			sx={{ alignSelf: 'center', mb: 2 }}
 			>
-			Запустить тест
+				Запустить тест
 			</Button>
 
 		<Snackbar

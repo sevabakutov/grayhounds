@@ -143,6 +143,9 @@ impl OpenAIClient {
         }
 
         ok.sort_by_key(|p| (p.meta.date, p.meta.time));
+
+        // println!("Response: {:?}", ok.clone());
+
         ok
     }
 

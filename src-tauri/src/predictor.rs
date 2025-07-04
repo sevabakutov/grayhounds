@@ -119,6 +119,7 @@ impl Predictor {
             .await?;
 
         log::info!("Found {} races", races.len());
+        // log::info!("Races: {:?}", races.clone());
 
         if self.config.max_races < races.len() {
             races.truncate(self.config.max_races);
