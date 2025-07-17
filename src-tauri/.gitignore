@@ -7,3 +7,5 @@
 /gen/schemas
 
 log/
+jsonl/
+*jsonl
