@@ -9,3 +9,5 @@
 log/
 jsonl/
 *jsonl
+src/bin/export_json.rs
+src/bin/export_real_results.rs
