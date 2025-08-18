@@ -52,7 +52,8 @@ async fn main() -> Result<()> {
             dogs_lib::commands::save_settings,
             dogs_lib::commands::load_time_ranges,
             dogs_lib::commands::load_predictions,
-            dogs_lib::commands::run_test
+            dogs_lib::commands::run_test,
+            dogs_lib::commands::copy_predict_request
         ])
         .run(tauri::generate_context!())?;
 

@@ -22,7 +22,7 @@ use async_openai::{
     Client
 };
 use mongodb::Database;
-// use serde_json::json;
+
 use crate::{
     constants::DOG_INFO_COLLECTION, 
     models::{

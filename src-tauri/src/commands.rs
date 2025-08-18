@@ -1,36 +1,19 @@
 use anyhow::Result;
+use chrono::{TimeZone, Utc};
 use futures::TryStreamExt;
 use mongodb::{
     bson::{
-        doc, 
-        to_document, 
-        DateTime, 
-        Document
+        self, doc, to_document, DateTime, Document
     }, 
     Client
 };
 use tauri::State;
-
 use crate::{
     constants::{
-        INSTRUCTION_COLLECTION, 
-        PREDICTIONS_COLLECTION, 
-        SETTINGS_COLLECTION, 
-        TIME_RANGES_COLLECTION
+        INSTRUCTION_COLLECTION, PREDICTIONS_COLLECTION, RACES_COLLECTION, SETTINGS_COLLECTION, TIME_RANGES_COLLECTION
     }, 
     models::{
-        AddInstructionInput, 
-        LoadPredictionsInput, 
-        LoadSettingsInput, 
-        LoadSettingsOutput, 
-        OddsRange, 
-        PredictInput, 
-        PredictResponse, 
-        SaveSettingsInput, 
-        Settings, 
-        TestDateTime, 
-        TestResults, 
-        TimeRange
+        AddInstructionInput, LoadPredictionsInput, LoadSettingsInput, LoadSettingsOutput, OddsRange, PredictInput, PredictResponse, SaveSettingsInput, Settings, TestDateTime, TestResults, Time, TimeRange
     }, 
     predictor::Predictor, 
     tester::Tester
@@ -239,4 +222,62 @@ pub async fn run_test(
         .map_err(|err| err.to_string())?;
 
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn copy_predict_request(
+    client_state: State<'_, Client>,
+    input: PredictInput,
+) -> Result<String, String> {
+    let db = client_state
+        .default_database()
+        .ok_or_else(|| "No default database".to_string())?;
+    
+    let today = Utc::now().date_naive();
+    let distances = &input.distances;
+    
+    let filter = match &input.time {
+        Time::FixedTime(naive_time) => {
+            let dt = Utc.from_utc_datetime(&today.and_time(*naive_time));
+            let fixed = bson::DateTime::from_millis(dt.timestamp_millis());
+            doc! {
+                "race_date_time": fixed,
+                "distance": { "$in": distances }
+            }
+        }
+        Time::RangeTime(range) => {
+            let start_dt = {
+                let dt = Utc.from_utc_datetime(&today.and_time(range.start_time));
+                bson::DateTime::from_millis(dt.timestamp_millis())
+            };
+            let end_dt = {
+                let dt = Utc.from_utc_datetime(&today.and_time(range.end_time));
+                bson::DateTime::from_millis(dt.timestamp_millis())
+            };
+            doc! {
+                "race_date_time": {
+                    "$gte": start_dt,
+                    "$lte": end_dt
+                },
+                "distance": { "$in": distances }
+            }
+        }
+    };
+
+    let pipeline = vec![
+        doc! { "$match": filter.clone() },
+        doc! { "$sort": { "race_date_time": 1_i32 } },
+    ];
+
+    let races: Vec<Document> = db
+        .collection::<Document>(RACES_COLLECTION)
+        .aggregate(pipeline)
+        .await
+        .map_err(|e| e.to_string())?
+        .try_collect()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let json = serde_json::to_string_pretty(&races).map_err(|e| e.to_string())?;
+    Ok(json)
 }
