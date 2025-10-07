@@ -44,6 +44,7 @@ async fn main() -> Result<()> {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             dogs_lib::commands::run_predict,
             dogs_lib::commands::add_instruction,

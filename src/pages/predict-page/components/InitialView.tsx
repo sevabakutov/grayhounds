@@ -13,6 +13,7 @@ import { LocalizationProvider, TimeField } from '@mui/x-date-pickers'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { TimeRangePicker } from '@/components/TimeRangePicker'
 import { DistanceControl } from '@/components/DistanceControl'
+import React from "react";
 
 interface Props {
   timeMode: 'fixed' | 'range'
@@ -38,7 +39,18 @@ interface Props {
     maxDistance?: boolean
     distances?: boolean
   }
+  copyInput: PredictInput | null,
+  onCopyPredictRequest: () => Promise<void>
 }
+
+type PredictInput = {
+  input: {
+    time:
+        | { fixedTime: string }
+        | { rangeTime: { startTime: string; endTime: string } };
+    distances: number[];
+  };
+};
 
 export const InitialView: React.FC<Props> = ({
   timeMode,
@@ -57,6 +69,8 @@ export const InitialView: React.FC<Props> = ({
   handleSelectChange,
   onSubmit,
   errors,
+  copyInput,
+  onCopyPredictRequest
 }) => (
   <form
     onSubmit={onSubmit}
@@ -115,8 +129,19 @@ export const InitialView: React.FC<Props> = ({
       />
     </Box>
 
-    <Button variant="contained" type="submit" sx={{ alignSelf: 'center', mb: 2 }}>
-      Предсказать
-    </Button>
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <Button
+          variant="outlined"
+          size="small"
+          onClick={onCopyPredictRequest}
+          disabled={!copyInput}
+      >
+        Копировать запрос
+      </Button>
+
+      <Button variant="contained" type="submit" sx={{ alignSelf: 'center', mb: 2 }}>
+        Предсказать
+      </Button>
+    </Box>
   </form>
 )

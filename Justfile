@@ -24,6 +24,6 @@ build-backend:
 preview:
 	npm run preview
 
-# Call Tauri CLI with aarguments
+# Call Tauri CLI with arguments
 tauri *args:
 	npm run tauri -- {{args}}

@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, CircularProgress, IconButton, Snackbar, Alert } from '@mui/material';
 import { InitialView } from './components/InitialView';
 import { ResultsView } from './components/ResultsView';
@@ -12,10 +12,24 @@ import { DISATNCES, DOGS_TIMEZONE, MAX_DISTANCE, MIN_DISTANCE } from '@/utils/co
 type PredictInput = {
   input: {
     time:
-      | { fixedTime: string }
-      | { rangeTime: { startTime: string; endTime: string } };
+        | { fixedTime: string }
+        | { rangeTime: { startTime: string; endTime: string } };
     distances: number[];
   };
+};
+
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+
+const copyText = async (payload: any) => {
+  const text = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  console.log(1234);
+  try {
+    await writeText(text);
+    console.log(text);
+    return;
+  } catch (error) {
+    console.log(error)
+  }
 };
 
 const PredictionPage = () => {
@@ -42,8 +56,12 @@ const PredictionPage = () => {
   }>({});
   const [alertStatus, setAlertStatus] = useState<'success'|'error'|null>(null);
 
-  // Фильтры для копирования (те же, что использовались для предсказаний)
+  // Фильтры для копирования, сохранённые после submit (для второй страницы/кэша)
   const [copyInput, setCopyInput] = useState<PredictInput | null>(null);
+
+  // Snackbar под копирование (виден на обеих шагах)
+  const [copyStatus, setCopyStatus] = useState<'success'|'error'|null>(null);
+  const [copyMessage, setCopyMessage] = useState<string>('');
 
   useEffect(() => {
     if (distanceMode === 'all') {
@@ -60,7 +78,42 @@ const PredictionPage = () => {
     setDistances(vals.map((v: string | number) => Number(v)));
   };
 
-  const formatTime = (d: Date) => d.toISOString().substr(11, 8);
+  const formatTime = (d: any) => d.toISOString().substr(11, 8);
+
+  // === НОВОЕ: динамически формируем валидный PredictInput из текущих контролов ===
+  const derivedCopyInput = useMemo<PredictInput | null>(() => {
+    let time: any = null;
+
+    if (timeMode === 'fixed' && fixedTime) {
+      time = { fixedTime: formatTime(fixedTime) };
+    } else if (
+        timeMode === 'range' &&
+        rangeTime[0] &&
+        rangeTime[1] &&
+        !rangeTime[0].isAfter(rangeTime[1])
+    ) {
+      time = {
+        rangeTime: {
+          startTime: formatTime(rangeTime[0]),
+          endTime: formatTime(rangeTime[1]),
+        },
+      };
+    }
+
+    const hasDistances = Array.isArray(distances) && distances.length > 0;
+
+    if (time && hasDistances) {
+      return { input: { time, distances } };
+    }
+    return null;
+  }, [timeMode, fixedTime, rangeTime, distances]);
+  // ============================================================================
+
+  // const copyText = async (payload: any) => {
+  //   await navigator.clipboard.writeText(
+  //       typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2)
+  //   );
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,8 +157,8 @@ const PredictionPage = () => {
 
     try {
       const time = timeMode === 'fixed'
-        ? { fixedTime: formatTime(fixedTime) }
-        : {
+          ? { fixedTime: formatTime(fixedTime) }
+          : {
             rangeTime: {
               startTime: formatTime(rangeTime[0]),
               endTime: formatTime(rangeTime[1]),
@@ -114,7 +167,7 @@ const PredictionPage = () => {
 
       const payload: PredictInput = { input: { time, distances } };
 
-      // Сохраняем фильтры для кнопок копирования
+      // Сохраняем фильтры для кнопок копирования (для второй страницы)
       setCopyInput(payload);
 
       const preds = await invoke<Prediction[]>('run_predict', payload);
@@ -127,6 +180,23 @@ const PredictionPage = () => {
       console.error('run_predict error', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Используем динамически сформированный input на первой странице,
+  // а если его нет — падаем обратно на сохранённый (для второй страницы).
+  const handleCopyPredictRequest = async () => {
+    try {
+      const payload = derivedCopyInput ?? copyInput;
+      if (!payload) throw new Error('Нет активных фильтров');
+      const json = await invoke<string>('copy_predict_request', payload);
+      await copyText(json);
+      setCopyMessage('Данные races по фильтрам скопированы');
+      setCopyStatus('success');
+    } catch (err) {
+      console.error('copy_predict_request error', err);
+      setCopyMessage('Не удалось скопировать данные');
+      setCopyStatus('error');
     }
   };
 
@@ -188,79 +258,92 @@ const PredictionPage = () => {
   };
 
   return (
-    <Box sx={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', p: 4 }}>
-      {step === 1 && (
-        <IconButton onClick={() => setStep(0)} sx={{ alignSelf: 'flex-start', mb: 2 }}>
-          <ArrowBackIcon />
-        </IconButton>
-      )}
+      <Box sx={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', p: 4 }}>
+        {step === 1 && (
+            <IconButton onClick={() => setStep(0)} sx={{ alignSelf: 'flex-start', mb: 2 }}>
+              <ArrowBackIcon />
+            </IconButton>
+        )}
 
-      <CacheTabs key={step} onSelect={handleTabSelect} />
+        <CacheTabs key={step} onSelect={handleTabSelect} />
 
-      {step === 0 && (
-        <InitialView
-          timeMode={timeMode}
-          fixedTime={fixedTime}
-          rangeTime={rangeTime}
-          distanceMode={distanceMode}
-          minDistance={minDistance}
-          maxDistance={maxDistance}
-          distances={distances}
-          handleTimeMode={setTimeMode}
-          setFixedTime={setFixedTime}
-          setRangeTime={setRangeTime}
-          handleDistanceMode={setDistanceMode}
-          setMinDistance={setMinDistance}
-          setMaxDistance={setMaxDistance}
-          handleSelectChange={handleSelectChange}
-          onSubmit={handleSubmit}
-          errors={errors}
-        />
-      )}
+        {step === 0 && (
+            <InitialView
+                timeMode={timeMode}
+                fixedTime={fixedTime}
+                rangeTime={rangeTime}
+                distanceMode={distanceMode}
+                minDistance={minDistance}
+                maxDistance={maxDistance}
+                distances={distances}
+                handleTimeMode={setTimeMode}
+                setFixedTime={setFixedTime}
+                setRangeTime={setRangeTime}
+                handleDistanceMode={setDistanceMode}
+                setMinDistance={setMinDistance}
+                setMaxDistance={setMaxDistance}
+                handleSelectChange={handleSelectChange}
+                onSubmit={handleSubmit}
+                errors={errors}
+                // ВАЖНО: теперь кнопка активируется, когда derivedCopyInput валиден
+                copyInput={derivedCopyInput}
+                onCopyPredictRequest={handleCopyPredictRequest}
+            />
+        )}
 
-      {step === 1 && (
-        <ResultsView
-          key={JSON.stringify(predictions.map(p => p.meta.time))}
-          predictions={predictions}
-          copyInput={copyInput}
-        />
-      )}
+        {step === 1 && (
+            <ResultsView
+                key={JSON.stringify(predictions.map(p => p.meta.time))}
+                predictions={predictions}
+                copyInput={copyInput}
+            />
+        )}
 
-      {isLoading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            bgcolor: 'rgba(255,255,255,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+        {isLoading && (
+            <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'rgba(255,255,255,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+            >
+              <CircularProgress />
+            </Box>
+        )}
+
+        <Snackbar
+            open={alertStatus === 'success'}
+            autoHideDuration={4000}
+            onClose={() => setAlertStatus(null)}
         >
-          <CircularProgress />
-        </Box>
-      )}
+          <Alert onClose={() => setAlertStatus(null)} severity="success">
+            Данные успешно загружены
+          </Alert>
+        </Snackbar>
 
-      <Snackbar
-        open={alertStatus === 'success'}
-        autoHideDuration={4000}
-        onClose={() => setAlertStatus(null)}
-      >
-        <Alert onClose={() => setAlertStatus(null)} severity="success">
-          Данные успешно загружены
-        </Alert>
-      </Snackbar>
+        <Snackbar
+            open={alertStatus === 'error'}
+            autoHideDuration={4000}
+            onClose={() => setAlertStatus(null)}
+        >
+          <Alert onClose={() => setAlertStatus(null)} severity="error">
+            Ошибка при получении данных
+          </Alert>
+        </Snackbar>
 
-      <Snackbar
-        open={alertStatus === 'error'}
-        autoHideDuration={4000}
-        onClose={() => setAlertStatus(null)}
-      >
-        <Alert onClose={() => setAlertStatus(null)} severity="error">
-          Ошибка при получении данных
-        </Alert>
-      </Snackbar>
-    </Box>
+        <Snackbar
+            open={copyStatus !== null}
+            autoHideDuration={3000}
+            onClose={() => setCopyStatus(null)}
+        >
+          <Alert onClose={() => setCopyStatus(null)} severity={copyStatus ?? 'success'}>
+            {copyMessage}
+          </Alert>
+        </Snackbar>
+      </Box>
   );
 };
 
