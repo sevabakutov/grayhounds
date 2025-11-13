@@ -219,16 +219,6 @@ async fn main() -> anyhow::Result<()> {
                                                         continue;
                                                     }
                                                 };
-                                                let race_date = race_dt.date();
-
-                                                if race_date
-                                                    < NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()
-                                                    || race_date
-                                                        > NaiveDate::from_ymd_opt(2024, 6, 30)
-                                                            .unwrap()
-                                                {
-                                                    continue;
-                                                }
 
                                                 let race_bson_dt = BsonDateTime::from_millis(
                                                     race_dt.and_utc().timestamp_millis(),

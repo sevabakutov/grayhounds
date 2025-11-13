@@ -149,14 +149,14 @@ async fn update_runner_in_db(
 
     // Create filter to find document by dog_name and race_id
     let filter = doc! {
-        "dog_name": &formatted_dog_name,
-        "race_id": runner.race_id
+        "dogName": &formatted_dog_name,
+        "raceId": runner.race_id
     };
 
     // Create update to set bf_odds_1_minute field with bsp value
     let update = doc! {
         "$set": {
-            "bf_odds_1_minute": runner.bsp
+            "bfOdds1Minute": runner.bsp
         }
     };
 
