@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use chrono::{Duration, NaiveDate, NaiveDateTime};
 use mongodb::{
-    bson::{doc, DateTime as BsonDateTime, Document},
+    bson::{DateTime as BsonDateTime, Document},
     options::ClientOptions,
     Client as MongoClient,
 };
@@ -255,7 +255,7 @@ async fn main() -> anyhow::Result<()> {
                                                     }
                                                 };
 
-                                                // Convert form JSON to BSON Document and add dogName
+                                                // Convert form JSON to BSON Document
                                                 let mut doc_to_insert = mongodb::bson::to_document(
                                                     &form,
                                                 )
@@ -263,10 +263,127 @@ async fn main() -> anyhow::Result<()> {
                                                     anyhow!("Failed to convert form to BSON: {}", e)
                                                 })?;
 
-                                                // Remove rInstId and insert raceId as integer
-                                                doc_to_insert.remove("rInstId");
+                                                // Remove unwanted fields
+                                                let fields_to_remove = vec![
+                                                    "rInstId",
+                                                    "raceTime",
+                                                    "rFormDatetime",
+                                                    "rOutcomeDesc",
+                                                    "otherDTxt",
+                                                    "trackShortName",
+                                                    "countryCde",
+                                                    "handicapMetre",
+                                                    "otherDHandicapMetre",
+                                                    "oddsFrctnNumer",
+                                                    "oddsFrctnDenom",
+                                                    "favFlag",
+                                                    "videoid",
+                                                    "clipId",
+                                                    "raceTitle",
+                                                    "raceGradeId",
+                                                    "resultsAvailable",
+                                                    "shortDate",
+                                                    "otherDogId",
+                                                    "otherDogName",
+                                                    "weight",
+                                                ];
+                                                for field in fields_to_remove {
+                                                    doc_to_insert.remove(field);
+                                                }
+
+                                                // Convert string fields to proper numeric types
+                                                // distMetre: string -> i32
+                                                if let Some(val) = doc_to_insert
+                                                    .get("distMetre")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<i32>() {
+                                                        doc_to_insert.insert("distMetre", num);
+                                                    }
+                                                }
+
+                                                // trapNum: string -> i32
+                                                if let Some(val) = doc_to_insert
+                                                    .get("trapNum")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<i32>() {
+                                                        doc_to_insert.insert("trapNum", num);
+                                                    }
+                                                }
+
+                                                // secTimeS: string -> f64
+                                                if let Some(val) = doc_to_insert
+                                                    .get("secTimeS")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<f64>() {
+                                                        doc_to_insert.insert("secTimeS", num);
+                                                    }
+                                                }
+
+                                                // rOutcomeId: string -> i32
+                                                if let Some(val) = doc_to_insert
+                                                    .get("rOutcomeId")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<i32>() {
+                                                        doc_to_insert.insert("rOutcomeId", num);
+                                                    }
+                                                }
+
+                                                // trackId: string -> i32
+                                                if let Some(val) = doc_to_insert
+                                                    .get("trackId")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<i32>() {
+                                                        doc_to_insert.insert("trackId", num);
+                                                    }
+                                                }
+
+                                                // winnersTimeS: string -> f64
+                                                if let Some(val) = doc_to_insert
+                                                    .get("winnersTimeS")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<f64>() {
+                                                        doc_to_insert.insert("winnersTimeS", num);
+                                                    }
+                                                }
+
+                                                // goingType: string -> i32
+                                                if let Some(val) = doc_to_insert
+                                                    .get("goingType")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<i32>() {
+                                                        doc_to_insert.insert("goingType", num);
+                                                    }
+                                                }
+
+                                                // calcRTimeS: string -> f64
+                                                if let Some(val) = doc_to_insert
+                                                    .get("calcRTimeS")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<f64>() {
+                                                        doc_to_insert.insert("calcRTimeS", num);
+                                                    }
+                                                }
+
+                                                // dWeightKgs: string -> f64
+                                                if let Some(val) = doc_to_insert
+                                                    .get("dWeightKgs")
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    if let Ok(num) = val.parse::<f64>() {
+                                                        doc_to_insert.insert("dWeightKgs", num);
+                                                    }
+                                                }
+
+                                                // Insert raceId, dogName, raceDateTime, dogId
                                                 doc_to_insert.insert("raceId", race_id);
-                                                // Add dogName and parsed raceDateTime
                                                 doc_to_insert.insert("dogName", dog_name);
                                                 doc_to_insert.insert("raceDateTime", race_bson_dt);
                                                 doc_to_insert.insert("dogId", dog_id);
@@ -278,7 +395,10 @@ async fn main() -> anyhow::Result<()> {
                                                     }
                                                     Err(e) => {
                                                         // Check if it's a duplicate key error (code 11000)
-                                                        if e.to_string().contains("E11000") || e.to_string().contains("duplicate key") {
+                                                        if e.to_string().contains("E11000")
+                                                            || e.to_string()
+                                                                .contains("duplicate key")
+                                                        {
                                                             // Document already exists, skip silently
                                                             continue;
                                                         }
