@@ -1,41 +1,27 @@
+pub mod client;
 pub mod commands;
 pub mod constants;
 pub mod models;
 pub mod predictor;
 pub mod scrapper;
-pub mod client;
-pub mod utils;
 pub mod tester;
+pub mod utils;
 
+use crate::models::DogRaceInfo;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{
-    NaiveDate, 
-    NaiveTime, 
-    TimeZone, 
-    Utc
-};
+use chrono::{NaiveDate, NaiveTime, TimeZone, Utc};
 use futures::TryStreamExt;
 use mongodb::{
-    bson::{
-        doc, 
-        from_document, 
-        DateTime, 
-        Document
-    }, 
-    Collection
+    bson::{doc, from_document, DateTime, Document},
+    Collection,
 };
-use crate::models::DogRaceInfo;
-
 
 #[async_trait]
 pub trait DogInfoRepo: Send + Sync {
     /// All recorrds about participants
-    async fn race_participants(
-        &self,
-        date: NaiveDate,
-        time: NaiveTime,
-    ) -> Result<Vec<DogRaceInfo>>;
+    async fn race_participants(&self, date: NaiveDate, time: NaiveTime)
+        -> Result<Vec<DogRaceInfo>>;
 
     /// Dog record
     async fn dog_record(
@@ -53,7 +39,7 @@ pub struct MongoDogInfoRepo {
 
 impl MongoDogInfoRepo {
     pub fn new(col: Collection<Document>) -> Self {
-       Self { col }
+        Self { col }
     }
 }
 

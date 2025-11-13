@@ -1,57 +1,37 @@
-use std::collections::HashMap;
-use anyhow::{
-    bail, 
-    Context, 
-    Result
-};
+use anyhow::{bail, Context, Result};
 use async_openai::types::ResponseFormatJsonSchema;
 use mongodb::{
-    bson::{
-        doc, 
-        Document
-    }, 
-    Database
+    bson::{doc, Document},
+    Database,
 };
-use serde_json::{
-    json, 
-    Value
-};
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use crate::{
-    constants::{
-        BETFAIR_PERCENTAGE, 
-        INSTRUCTION_COLLECTION
-    }, 
+    constants::{BETFAIR_PERCENTAGE, INSTRUCTION_COLLECTION},
     models::{
-        Balance, 
-        InstructionDoc, 
-        OddsRange, 
-        PosOdds, 
-        PositionInfo, 
-        PredictResponse, 
-        RaceCount, 
-        Settings, 
-        SkipInfo, 
-        TestErrors, 
-        TestResultsDog, 
-        TestResultsMeta, 
-        TestResultsRace, 
-        TestResultsRaceMeta, 
-        TestResultsRealResults
-    }, 
-    DogInfoRepo
+        Balance, InstructionDoc, OddsRange, PosOdds, PositionInfo, PredictResponse, RaceCount,
+        Settings, SkipInfo, TestErrors, TestResultsDog, TestResultsMeta, TestResultsRace,
+        TestResultsRaceMeta, TestResultsRealResults,
+    },
+    DogInfoRepo,
 };
 
 pub async fn build_requests(
     races: Vec<Document>,
     database: Database,
-    config: Settings
+    config: Settings,
 ) -> Result<Vec<HashMap<String, Value>>> {
     let instruction = database
         .collection::<InstructionDoc>(INSTRUCTION_COLLECTION)
         .find_one(doc! { "name": config.instruction_name.as_str() })
         .await?
-        .with_context(|| format!("Not instruction with such name: {}", config.instruction_name.as_str()))?;
+        .with_context(|| {
+            format!(
+                "Not instruction with such name: {}",
+                config.instruction_name.as_str()
+            )
+        })?;
 
     let mut requests = Vec::new();
     for chunk in races.chunks(config.races_per_request) {
@@ -59,12 +39,12 @@ pub async fn build_requests(
         let mut map = HashMap::new();
 
         map.insert("meta".to_string(), meta);
-        
+
         let system = json!({ "role": "system", "content": instruction.content.as_str() });
         let user = json!({ "role": "user", "content": json!({ "races": chunk }).to_string()});
-        
-        map.insert("messages".to_string(), json!([ system, user ]));
-        
+
+        map.insert("messages".to_string(), json!([system, user]));
+
         requests.push(map);
     }
 
@@ -116,29 +96,29 @@ pub fn get_response_format_json_schema() -> ResponseFormatJsonSchema {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "name": { 
-                            "type": "string", 
-                            "description": "Имя собаки" 
+                        "name": {
+                            "type": "string",
+                            "description": "Имя собаки"
                         },
-                        "rawScore": { 
-                            "type": "number", 
-                            "description": "Суммарный Raw Score" 
+                        "rawScore": {
+                            "type": "number",
+                            "description": "Суммарный Raw Score"
                         },
-                        "percentage": { 
-                            "type": "number", 
-                            "min": 0, 
-                            "max": 100, 
-                            "description": "Шанс победы в процентах" 
+                        "percentage": {
+                            "type": "number",
+                            "min": 0,
+                            "max": 100,
+                            "description": "Шанс победы в процентах"
                         },
-                        "rank": { 
-                            "type": "integer", 
-                            "min": 1, 
-                            "max": 6, 
-                            "description": "Позиция в прогнозе (1 — фаворит)" 
+                        "rank": {
+                            "type": "integer",
+                            "min": 1,
+                            "max": 6,
+                            "description": "Позиция в прогнозе (1 — фаворит)"
                         },
-                        "comment": { 
-                            "type": "string", 
-                            "description": "Краткий комментарий по результату. Выдавай его всегда" 
+                        "comment": {
+                            "type": "string",
+                            "description": "Краткий комментарий по результату. Выдавай его всегда"
                         }
                     },
                     "required": ["name", "rawScore", "percentage", "rank", "comment"]
@@ -215,180 +195,185 @@ pub async fn process_test_results<R: DogInfoRepo>(
     );
 
     'preds: for mut predict in predictions {
-            predict.sort_predictions();
+        predict.sort_predictions();
 
-            let meta_pred = &predict.meta;
+        let meta_pred = &predict.meta;
 
-            let dogs = match repo.race_participants(meta_pred.date, meta_pred.time).await {
-                Ok(v) => v,
-                Err(error) => {
-                    total_mongo_db_error += 1;
-                    log::error!("{error}");
-                    continue;
-                }
-            };
+        let dogs = match repo.race_participants(meta_pred.date, meta_pred.time).await {
+            Ok(v) => v,
+            Err(error) => {
+                total_mongo_db_error += 1;
+                log::error!("{error}");
+                continue;
+            }
+        };
 
-            let n_participants = dogs.len();
-            if !(5..=6).contains(&n_participants) {
-                if n_participants < 5 {
-                    skipped_races_lt5 += 1;
-                } else {
-                    skipped_races_gt6 += 1;
-                }
-                log::warn!(
+        let n_participants = dogs.len();
+        if !(5..=6).contains(&n_participants) {
+            if n_participants < 5 {
+                skipped_races_lt5 += 1;
+            } else {
+                skipped_races_gt6 += 1;
+            }
+            log::warn!(
                     "Пропущенна гонка. Кол-во участников: {}; skipped_races_lt5 == {}; skipped_races_gt6 == {}",
                     n_participants,
                     skipped_races_lt5,
                     skipped_races_gt6
                 );
-                continue;
-            }
+            continue;
+        }
 
-            let favorite_odds = dogs
-                .iter()
-                .map(|d| d.bf_odds_1_minute)
-                .fold(f64::INFINITY, f64::min);
+        let favorite_odds = dogs
+            .iter()
+            .map(|d| d.bf_odds_1_minute)
+            .fold(f64::INFINITY, f64::min);
 
-            let mut odds_info = Vec::new();
-            for p in &predict.predictions[predict.predictions.len().saturating_sub(2)..] {
-                let rec = match repo
-                    .dog_record(meta_pred.date, meta_pred.time, meta_pred.distance, &p.name)
-                    .await
-                {
-                    Ok(Some(r)) => r,
-                    Ok(None) => continue,
-                    Err(e) => {
-                        total_mongo_db_error += 1;
-                        log::error!("{e}");
-                        continue;
-                    }
-                };
-
-                match (p.rank as i32, rec.result_position) {
-                    (4, 1) => bad_hit_4_pos += 1,
-                    (5, 1) => bad_hit_5_pos += 1,
-                    (6, 1) => bad_hit_6_pos += 1,
-                    _ => {}
-                }
-
-                if !(odds_range.low..=odds_range.high).contains(&rec.bf_odds_1_minute) {
-                    // skipped_odds_range += 1;
-                    log::info!(
-                        "Коэффициент не входит в указанный диапозон: {}; skipped_odds_range: {}",
-                        rec.bf_odds_1_minute,
-                        skipped_odds_range
-                    );
+        let mut odds_info = Vec::new();
+        for p in &predict.predictions[predict.predictions.len().saturating_sub(2)..] {
+            let rec = match repo
+                .dog_record(meta_pred.date, meta_pred.time, meta_pred.distance, &p.name)
+                .await
+            {
+                Ok(Some(r)) => r,
+                Ok(None) => continue,
+                Err(e) => {
+                    total_mongo_db_error += 1;
+                    log::error!("{e}");
                     continue;
-                }
-
-                odds_info.push(PosOdds {
-                    real_position: rec.result_position,
-                    odds: rec.bf_odds_1_minute,
-                });
-            }
-
-            let mut test_dogs = Vec::with_capacity(n_participants);
-            for dog in dogs.iter() {
-                let record_opt = repo
-                    .dog_record(meta_pred.date, meta_pred.time, meta_pred.distance, &dog.dog_name)
-                    .await
-                    .ok()
-                    .flatten();
-
-                let (rank, odds_res) = if let Some(record) = &record_opt {
-                    (record.result_position as u8, record.bf_odds_1_minute as f32)
-                } else {
-                    (0, 0.0)
-                };
-
-                let model_pred = predict
-                    .predictions
-                    .iter()
-                    .find(|p| p.name.eq(&dog.dog_name))
-                    .cloned()
-                    .unwrap_or_default();
-
-                let real_results = TestResultsRealResults::new(rank, odds_res);
-
-                test_dogs.push(TestResultsDog::new(
-                    dog.dog_name.clone(),
-                    model_pred,
-                    real_results,
-                ));
-            }
-
-            let bet_target_opt: Option<PosOdds> = if odds_info.is_empty() {
-                skipped_odds_range += 1;
-                None
-            } else {
-                odds_info.sort_by(|a, b| a.odds.partial_cmp(&b.odds).unwrap());
-                if is_favorite_protected {
-                    match odds_info.len() {
-                        1 => {
-                            if odds_info[0].odds == favorite_odds {
-                                skipped_favorite += 1;
-                                None
-                            } else {
-                                Some(odds_info[0])
-                            }
-                        }
-                        _ => {
-                            if odds_info[0].odds == favorite_odds {
-                                skipped_favorite += 1;
-                                if odds_info[1].odds == favorite_odds {
-                                    // skipped_favorite += 1;
-                                    None
-                                } else {
-                                    Some(odds_info[1])
-                                }
-                            } else {
-                                Some(odds_info[0])
-                            }
-                        }
-                    }
-                } else {
-                    Some(odds_info[0])
                 }
             };
 
-            if let Some(bet_target) = bet_target_opt {
-                let obligation = initial_stake * (bet_target.odds - 1.0);
-                if current_balance < obligation {
-                    log::warn!(
-                        "Недостаточно баланса ({}) для обязательства ставки {}. Прерываем.",
-                        current_balance,
-                        obligation
-                    );
-                    break 'preds;
-                }
-
-                if bet_target.real_position == 1 {
-                    current_balance -= obligation;
-                    current_balance = r2(current_balance);
-                } else {
-                    current_balance += initial_stake * BETFAIR_PERCENTAGE;
-                    current_balance = r2(current_balance);
-                }
-                tracked_races += 1;
+            match (p.rank as i32, rec.result_position) {
+                (4, 1) => bad_hit_4_pos += 1,
+                (5, 1) => bad_hit_5_pos += 1,
+                (6, 1) => bad_hit_6_pos += 1,
+                _ => {}
             }
 
-            let mut profit = ((current_balance - initial_balance) / initial_balance) * 100.0;
-            profit = r2(profit);
-            let race_meta = TestResultsRaceMeta::new(
-                meta_pred.date,
-                meta_pred.distance,
-                meta_pred.grade.clone(),
-                meta_pred.time,
-                meta_pred.track.clone(),
-                r2(current_balance),
-                profit,
-            );
+            if !(odds_range.low..=odds_range.high).contains(&rec.bf_odds_1_minute) {
+                // skipped_odds_range += 1;
+                log::info!(
+                    "Коэффициент не входит в указанный диапозон: {}; skipped_odds_range: {}",
+                    rec.bf_odds_1_minute,
+                    skipped_odds_range
+                );
+                continue;
+            }
 
-            let race_summary = predict.summary.clone().unwrap_or_default();
-            let race_id = dogs.first().unwrap().race_id;
-            let race_struct = TestResultsRace::new(race_id, race_meta, test_dogs, race_summary);
-            races.push(race_struct);
+            odds_info.push(PosOdds {
+                real_position: rec.result_position,
+                odds: rec.bf_odds_1_minute,
+            });
         }
+
+        let mut test_dogs = Vec::with_capacity(n_participants);
+        for dog in dogs.iter() {
+            let record_opt = repo
+                .dog_record(
+                    meta_pred.date,
+                    meta_pred.time,
+                    meta_pred.distance,
+                    &dog.dog_name,
+                )
+                .await
+                .ok()
+                .flatten();
+
+            let (rank, odds_res) = if let Some(record) = &record_opt {
+                (record.result_position as u8, record.bf_odds_1_minute as f32)
+            } else {
+                (0, 0.0)
+            };
+
+            let model_pred = predict
+                .predictions
+                .iter()
+                .find(|p| p.name.eq(&dog.dog_name))
+                .cloned()
+                .unwrap_or_default();
+
+            let real_results = TestResultsRealResults::new(rank, odds_res);
+
+            test_dogs.push(TestResultsDog::new(
+                dog.dog_name.clone(),
+                model_pred,
+                real_results,
+            ));
+        }
+
+        let bet_target_opt: Option<PosOdds> = if odds_info.is_empty() {
+            skipped_odds_range += 1;
+            None
+        } else {
+            odds_info.sort_by(|a, b| a.odds.partial_cmp(&b.odds).unwrap());
+            if is_favorite_protected {
+                match odds_info.len() {
+                    1 => {
+                        if odds_info[0].odds == favorite_odds {
+                            skipped_favorite += 1;
+                            None
+                        } else {
+                            Some(odds_info[0])
+                        }
+                    }
+                    _ => {
+                        if odds_info[0].odds == favorite_odds {
+                            skipped_favorite += 1;
+                            if odds_info[1].odds == favorite_odds {
+                                // skipped_favorite += 1;
+                                None
+                            } else {
+                                Some(odds_info[1])
+                            }
+                        } else {
+                            Some(odds_info[0])
+                        }
+                    }
+                }
+            } else {
+                Some(odds_info[0])
+            }
+        };
+
+        if let Some(bet_target) = bet_target_opt {
+            let obligation = initial_stake * (bet_target.odds - 1.0);
+            if current_balance < obligation {
+                log::warn!(
+                    "Недостаточно баланса ({}) для обязательства ставки {}. Прерываем.",
+                    current_balance,
+                    obligation
+                );
+                break 'preds;
+            }
+
+            if bet_target.real_position == 1 {
+                current_balance -= obligation;
+                current_balance = r2(current_balance);
+            } else {
+                current_balance += initial_stake * BETFAIR_PERCENTAGE;
+                current_balance = r2(current_balance);
+            }
+            tracked_races += 1;
+        }
+
+        let mut profit = ((current_balance - initial_balance) / initial_balance) * 100.0;
+        profit = r2(profit);
+        let race_meta = TestResultsRaceMeta::new(
+            meta_pred.date,
+            meta_pred.distance,
+            meta_pred.grade.clone(),
+            meta_pred.time,
+            meta_pred.track.clone(),
+            r2(current_balance),
+            profit,
+        );
+
+        let race_summary = predict.summary.clone().unwrap_or_default();
+        let race_id = dogs.first().unwrap().race_id;
+        let race_struct = TestResultsRace::new(race_id, race_meta, test_dogs, race_summary);
+        races.push(race_struct);
+    }
 
     let mut percentage = ((current_balance - initial_balance) / initial_balance) * 100.0;
     percentage = r2(percentage);
@@ -412,4 +397,6 @@ pub async fn process_test_results<R: DogInfoRepo>(
 }
 
 #[inline]
-fn r2(v: f64) -> f64 { (v * 100.0).round() / 100.0 }
+fn r2(v: f64) -> f64 {
+    (v * 100.0).round() / 100.0
+}

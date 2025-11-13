@@ -1,43 +1,19 @@
 use std::collections::HashMap;
 
-use anyhow::{
-    anyhow, 
-    Result
-};
-use chrono::{
-    NaiveDate, 
-    NaiveTime, 
-    TimeZone, 
-    Utc
-};
-use futures::stream::TryStreamExt;
-use log::{
-    error, 
-    info
-};
-use mongodb::bson::{
-    self, 
-    doc, 
-    to_document, 
-    DateTime, 
-    Document
-};
-use serde_json::json;
+use anyhow::{anyhow, Result};
+use chrono::{NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::Europe::London;
+use futures::stream::TryStreamExt;
+use log::{error, info};
+use mongodb::bson::{self, doc, to_document, DateTime, Document};
+use serde_json::json;
 
 use crate::{
     client::OpenAIClient,
     constants::{
-        MAX_REQUEST_DEFENCE, 
-        PREDICTIONS_COLLECTION, 
-        RACES_COLLECTION, TIME_RANGES_COLLECTION
+        MAX_REQUEST_DEFENCE, PREDICTIONS_COLLECTION, RACES_COLLECTION, TIME_RANGES_COLLECTION,
     },
-    models::{
-        PredictInput, 
-        PredictResponse, 
-        Settings, 
-        Time
-    },
+    models::{PredictInput, PredictResponse, Settings, Time},
     scrapper::Scrapper,
     utils::build_requests,
 };
@@ -45,18 +21,14 @@ use crate::{
 #[allow(unused)]
 pub struct Predictor {
     fixed_date: NaiveDate,
-    db_client: mongodb::Client, 
+    db_client: mongodb::Client,
     config: Settings,
     distances: Vec<i32>,
     time: Time,
 }
 
 impl Predictor {
-    pub async fn new(
-        config: Settings,
-        db_client: mongodb::Client,
-        input: PredictInput,
-    ) -> Self {
+    pub async fn new(config: Settings, db_client: mongodb::Client, input: PredictInput) -> Self {
         let fixed_date = chrono::Utc::now().date_naive();
         let distances = input.distances;
         let time = input.time;
@@ -66,18 +38,19 @@ impl Predictor {
             db_client,
             config,
             distances,
-            time
+            time,
         }
     }
 
     pub async fn create_request(&self) -> Result<Vec<HashMap<String, serde_json::Value>>> {
-        let database = self.db_client
+        let database = self
+            .db_client
             .default_database()
             .ok_or_else(|| anyhow!("Not default DB"))?;
 
         let distances = &self.distances;
         let today = Utc::now().date_naive();
-        
+
         let filter = match &self.time {
             Time::FixedTime(naive_time) => {
                 let dt = Utc.from_utc_datetime(&today.and_time(*naive_time));
@@ -170,7 +143,7 @@ impl Predictor {
         } else {
             info!("Races scrapping");
             let scrapper = Scrapper::new()?;
-            
+
             let data = scrapper.get_all_dogs_data(&self.fixed_date).await?;
 
             let docs: Vec<Document> = data
@@ -210,14 +183,13 @@ impl Predictor {
 
         let mut writes = Vec::with_capacity(preds.len());
 
-        let today = Utc::now()
-            .with_timezone(&London)
-            .date_naive();
-        let midnight  = London
-            .from_local_datetime(&today
-                .succ_opt()
-                .unwrap()
-                .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+        let today = Utc::now().with_timezone(&London).date_naive();
+        let midnight = London
+            .from_local_datetime(
+                &today
+                    .succ_opt()
+                    .unwrap()
+                    .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
             )
             .single()
             .unwrap()
@@ -231,28 +203,25 @@ impl Predictor {
             writes.push(doc);
         }
 
-        collection
-            .insert_many(writes)
-            .await?;
+        collection.insert_many(writes).await?;
 
         Ok(())
     }
 
     pub async fn save_time_ranges(&self) -> Result<()> {
-        let today = Utc::now()
-            .with_timezone(&London)
-            .date_naive();
-        let midnight  = London
-            .from_local_datetime(&today
-                .succ_opt()
-                .unwrap()
-                .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+        let today = Utc::now().with_timezone(&London).date_naive();
+        let midnight = London
+            .from_local_datetime(
+                &today
+                    .succ_opt()
+                    .unwrap()
+                    .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
             )
             .single()
             .unwrap()
             .with_timezone(&Utc);
         let expire_at = DateTime::from_millis(midnight.timestamp_millis());
-        
+
         let time = match &self.time {
             Time::FixedTime(time) => doc! {
                 "startTime": time.format("%H:%M").to_string(),

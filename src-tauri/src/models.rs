@@ -16,7 +16,7 @@ pub struct RangeTime {
 #[serde(rename_all = "camelCase")]
 pub struct RangeDateTime {
     pub start_date_time: NaiveDateTime,
-    pub end_date_time: NaiveDateTime
+    pub end_date_time: NaiveDateTime,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -30,7 +30,7 @@ pub enum Time {
 #[serde(rename_all = "camelCase")]
 pub enum TestDateTime {
     FixedDateTime(NaiveDateTime),
-    RangeDateTime(RangeDateTime)
+    RangeDateTime(RangeDateTime),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -38,7 +38,7 @@ pub enum TestDateTime {
 pub enum Model {
     O3Mini,
     O4Mini,
-    O3
+    O3,
 }
 
 impl fmt::Display for Model {
@@ -46,7 +46,7 @@ impl fmt::Display for Model {
         let s = match self {
             Model::O3Mini => "o3-mini",
             Model::O4Mini => "o4-mini",
-            Model::O3     => "o3"
+            Model::O3 => "o3",
         };
         f.write_str(s)
     }
@@ -131,13 +131,10 @@ pub struct RaceCount {
 }
 
 impl RaceCount {
-    pub fn new(
-        total_races: usize,
-        races_tracked: usize
-    ) -> Self {
+    pub fn new(total_races: usize, races_tracked: usize) -> Self {
         Self {
             total_races,
-            races_tracked
+            races_tracked,
         }
     }
 }
@@ -145,15 +142,12 @@ impl RaceCount {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct OddsRange {
     pub low: f64,
-    pub high: f64
+    pub high: f64,
 }
 
 impl OddsRange {
     pub fn new(low: f64, high: f64) -> Self {
-        Self {
-            low,
-            high
-        }
+        Self { low, high }
     }
 }
 
@@ -168,19 +162,15 @@ impl OddsRange {
 pub struct PositionInfo {
     bad_hit_4_pos: i32,
     bad_hit_5_pos: i32,
-    bad_hit_6_pos: i32
+    bad_hit_6_pos: i32,
 }
 
 impl PositionInfo {
-    pub fn new(
-        bad_hit_4_pos: i32,
-        bad_hit_5_pos: i32,
-        bad_hit_6_pos: i32,
-    ) -> Self {
+    pub fn new(bad_hit_4_pos: i32, bad_hit_5_pos: i32, bad_hit_6_pos: i32) -> Self {
         Self {
             bad_hit_4_pos,
             bad_hit_5_pos,
-            bad_hit_6_pos
+            bad_hit_6_pos,
         }
     }
 }
@@ -202,7 +192,7 @@ impl TestErrors {
         Self {
             total_empty_content,
             total_race_parse_error,
-            total_mongo_db_error
+            total_mongo_db_error,
         }
     }
 }
@@ -213,7 +203,7 @@ pub struct SkipInfo {
     skipped_races_lt5: i32,
     skipped_races_gt6: i32,
     skipped_odds_range: i32,
-    skipped_favorite: i32
+    skipped_favorite: i32,
 }
 
 impl SkipInfo {
@@ -221,13 +211,13 @@ impl SkipInfo {
         skipped_races_lt5: i32,
         skipped_races_gt6: i32,
         skipped_odds_range: i32,
-        skipped_favorite: i32
+        skipped_favorite: i32,
     ) -> Self {
         Self {
             skipped_races_lt5,
             skipped_races_gt6,
             skipped_odds_range,
-            skipped_favorite
+            skipped_favorite,
         }
     }
 }
@@ -236,17 +226,14 @@ impl SkipInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Balance {
     initial_balance: f64,
-    final_balance: f64
+    final_balance: f64,
 }
 
 impl Balance {
-    pub fn new(
-        initial_balance: f64,
-        final_balance: f64
-    ) -> Self {
+    pub fn new(initial_balance: f64, final_balance: f64) -> Self {
         Self {
             initial_balance,
-            final_balance
+            final_balance,
         }
     }
 }
@@ -255,7 +242,7 @@ impl Balance {
 #[serde(rename_all = "camelCase")]
 pub struct TestResultsMeta {
     race_count: RaceCount,
-    odds_range: OddsRange, 
+    odds_range: OddsRange,
     position_info: PositionInfo,
     skip_info: SkipInfo,
     balance: Balance,
@@ -274,7 +261,7 @@ impl TestResultsMeta {
         balance: Balance,
         errors: TestErrors,
         initial_stake: f64,
-        percentage: f64
+        percentage: f64,
     ) -> Self {
         Self {
             race_count,
@@ -284,7 +271,7 @@ impl TestResultsMeta {
             balance,
             errors,
             initial_stake,
-            percentage
+            percentage,
         }
     }
 }
@@ -298,7 +285,7 @@ pub struct TestResultsRaceMeta {
     time: NaiveTime,
     track: String,
     current_balance: f64,
-    profit: f64
+    profit: f64,
 }
 
 impl TestResultsRaceMeta {
@@ -318,7 +305,7 @@ impl TestResultsRaceMeta {
             time,
             track,
             current_balance,
-            profit
+            profit,
         }
     }
 }
@@ -327,15 +314,12 @@ impl TestResultsRaceMeta {
 #[serde(rename_all = "camelCase")]
 pub struct TestResultsRealResults {
     rank: u8,
-    betfair_odds: f32
+    betfair_odds: f32,
 }
 
 impl TestResultsRealResults {
     pub fn new(rank: u8, betfair_odds: f32) -> Self {
-        Self {
-            rank,
-            betfair_odds
-        }
+        Self { rank, betfair_odds }
     }
 }
 
@@ -367,7 +351,7 @@ pub struct TestResultsRace {
     race_id: u64,
     meta: TestResultsRaceMeta,
     dogs: Vec<TestResultsDog>,
-    summary: String
+    summary: String,
 }
 
 impl TestResultsRace {
@@ -375,13 +359,13 @@ impl TestResultsRace {
         race_id: u64,
         meta: TestResultsRaceMeta,
         dogs: Vec<TestResultsDog>,
-        summary: String
+        summary: String,
     ) -> Self {
         Self {
             race_id,
             meta,
             dogs,
-            summary
+            summary,
         }
     }
 }
@@ -390,7 +374,7 @@ impl TestResultsRace {
 pub struct TestResults {
     meta: TestResultsMeta,
     races: Vec<TestResultsRace>,
-    requests: Vec<HashMap<String, serde_json::Value>>
+    requests: Vec<HashMap<String, serde_json::Value>>,
 }
 
 impl TestResults {
@@ -424,25 +408,28 @@ impl TestResults {
             })
             .collect();
 
-        Self { meta, races, requests }
+        Self {
+            meta,
+            races,
+            requests,
+        }
     }
 }
 
-
 pub struct RequestsInfo {
     pub requests: Vec<HashMap<String, serde_json::Value>>,
-    pub total_races: usize
+    pub total_races: usize,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct AddInstructionInput {
     pub name: String,
-    pub content: String
+    pub content: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct LoadSettingsInput {
-    pub model: String
+    pub model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -458,7 +445,7 @@ pub struct LoadSettingsOutput {
     pub temperature: Option<f32>,
     pub max_races: usize,
     pub races_per_request: usize,
-    pub instruction_name: String
+    pub instruction_name: String,
 }
 
 impl Default for LoadSettingsOutput {
@@ -475,7 +462,7 @@ impl Default for LoadSettingsOutput {
             temperature: None,
             max_races: 50,
             races_per_request: 1,
-            instruction_name: String::new()
+            instruction_name: String::new(),
         }
     }
 }
@@ -494,7 +481,7 @@ pub struct SaveSettingsInput {
     pub temperature: Option<f32>,
     pub max_races: usize,
     pub races_per_request: usize,
-    pub instruction_name: String
+    pub instruction_name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -527,7 +514,7 @@ pub struct Meta {
     pub time: NaiveTime,
     pub distance: u32,
     pub track: String,
-    pub grade: Option<String>
+    pub grade: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -537,14 +524,14 @@ pub struct Prediction {
     pub raw_score: f32,
     pub percentage: f32,
     pub rank: u8,
-    pub comment: Option<String>
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PredictResponse {
     pub meta: Meta,
     pub predictions: Vec<Prediction>,
-    pub summary: Option<String>
+    pub summary: Option<String>,
 }
 
 impl PredictResponse {
@@ -557,13 +544,13 @@ impl PredictResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TimeRange {
     pub start_time: String,
-    pub end_time: Option<String>
+    pub end_time: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct LoadPredictionsInput {
     #[serde(rename = "timeRange")]
-    pub time_range: TimeRange
+    pub time_range: TimeRange,
 }
 
 pub enum RaceGrade {
@@ -608,5 +595,5 @@ pub enum RaceGrade {
     S6,
     S7,
     S8,
-    S15
+    S15,
 }

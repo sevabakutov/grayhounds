@@ -356,22 +356,22 @@ impl Scrapper {
         // 1) trackId -> trackName
         if let Some(serde_json::Value::String(track_id_str)) = dog_map.get("trackId") {
             let track_name = self.convert_track_id(track_id_str);
-            
-            if track_name.eq(&"Limerick") 
-            || track_name.eq(&"Youghal") 
-            || track_name.eq(&"Clonmel") 
-            || track_name.eq(&"Galway")
-            || track_name.eq(&"Newbridge")
-            || track_name.eq(&"Shelbourne Park")
-            || track_name.eq(&"Tralee")
-            || track_name.eq(&"Cork")
-            || track_name.eq(&"Dundalk")
-            || track_name.eq(&"Kilkenny")
-            || track_name.eq(&"Mullingar")
+
+            if track_name.eq(&"Limerick")
+                || track_name.eq(&"Youghal")
+                || track_name.eq(&"Clonmel")
+                || track_name.eq(&"Galway")
+                || track_name.eq(&"Newbridge")
+                || track_name.eq(&"Shelbourne Park")
+                || track_name.eq(&"Tralee")
+                || track_name.eq(&"Cork")
+                || track_name.eq(&"Dundalk")
+                || track_name.eq(&"Kilkenny")
+                || track_name.eq(&"Mullingar")
             {
                 return None;
             }
-            
+
             doc.insert("trackName", track_name);
         }
 

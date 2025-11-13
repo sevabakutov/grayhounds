@@ -1,13 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use dotenv::dotenv;
 use anyhow::Result;
+use dotenv::dotenv;
 use mongodb::{
-    options::{
-        ClientOptions, 
-        ServerApi, 
-        ServerApiVersion
-    },
+    options::{ClientOptions, ServerApi, ServerApiVersion},
     Client,
 };
 use tauri::Manager;
@@ -15,8 +11,9 @@ use tauri::Manager;
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
-    
-    let conn_str = std::env::var("DB_CONNECTION_STRING").expect("Failed to read db connection string.");
+
+    let conn_str =
+        std::env::var("DB_CONNECTION_STRING").expect("Failed to read db connection string.");
     let mut opts = ClientOptions::parse(&conn_str).await?;
     opts.server_api = Some(ServerApi::builder().version(ServerApiVersion::V1).build());
     let client = Client::with_options(opts)?;
